@@ -2,3 +2,4 @@
 /vendor/
 /report/
 composer.lock
+.DS_Store

@@ -21,7 +21,8 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Firebase\JWT\JWT;
+use Lcobucci\JWT\Parser;
+use Lcobucci\JWT\Signer\Hmac\Sha256;
 
 class JwtAuthentication
 {
@@ -39,18 +40,18 @@ class JwtAuthentication
      * Stores all the options passed to the rule
      */
     private $options = [
-        "secure" => true,
-        "relaxed" => ["localhost", "127.0.0.1"],
-        "environment" => ["HTTP_AUTHORIZATION", "REDIRECT_HTTP_AUTHORIZATION"],
-        "algorithm" => ["HS256", "HS512", "HS384"],
-        "header" => "Authorization",
-        "regexp" => "/Bearer\s+(.*)$/i",
-        "cookie" => "token",
-        "attribute" => "token",
-        "path" => null,
-        "passthrough" => null,
-        "callback" => null,
-        "error" => null
+        'secure'      => true,
+        'relaxed'     => ['localhost', '127.0.0.1'],
+        'environment' => ['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'],
+        'algorithm'   => ['HS256', 'HS512', 'HS384'],
+        'header'      => 'Authorization',
+        'regexp'      => '/Bearer\s+(.*)$/i',
+        'cookie'      => 'token',
+        'attribute'   => 'token',
+        'path'        => null,
+        'passthrough' => null,
+        'callback'    => null,
+        'error'       => null
     ];
 
     /**
@@ -67,17 +68,17 @@ class JwtAuthentication
         $this->hydrate($options);
 
         /* If nothing was passed in options add default rules. */
-        if (!isset($options["rules"])) {
+        if (!isset($options['rules'])) {
             $this->addRule(new RequestMethodRule([
-                "passthrough" => ["OPTIONS"]
+                'passthrough' => ['OPTIONS']
             ]));
         }
 
         /* If path was given in easy mode add rule for it. */
-        if (null !== ($this->options["path"])) {
+        if (null !== ($this->options['path'])) {
             $this->addRule(new RequestPathRule([
-                "path" => $this->options["path"],
-                "passthrough" => $this->options["passthrough"]
+                'path' => $this->options['path'],
+                'passthrough' => $this->options['passthrough']
             ]));
         }
     }
@@ -101,10 +102,10 @@ class JwtAuthentication
         }
 
         /* HTTP allowed only if secure is false or server is in relaxed array. */
-        if ("https" !== $scheme && true === $this->options["secure"]) {
-            if (!in_array($host, $this->options["relaxed"])) {
+        if ('https' !== $scheme && true === $this->options['secure']) {
+            if (!in_array($host, $this->options['relaxed'])) {
                 $message = sprintf(
-                    "Insecure use of middleware over %s denied by configuration.",
+                    'Insecure use of middleware over %s denied by configuration.',
                     strtoupper($scheme)
                 );
                 throw new \RuntimeException($message);
@@ -114,31 +115,31 @@ class JwtAuthentication
         /* If token cannot be found return with 401 Unauthorized. */
         if (false === $token = $this->fetchToken($request)) {
             return $this->error($request, $response, [
-                "message" => $this->message
+                'message' => $this->message
             ])->withStatus(401);
         }
 
         /* If token cannot be decoded return with 401 Unauthorized. */
         if (false === $decoded = $this->decodeToken($token)) {
             return $this->error($request, $response, [
-                "message" => $this->message,
-                "token" => $token
+                'message' => $this->message,
+                'token' => $token
             ])->withStatus(401);
         }
 
         /* If callback returns false return with 401 Unauthorized. */
-        if (is_callable($this->options["callback"])) {
-            $params = ["decoded" => $decoded];
-            if (false === $this->options["callback"]($request, $response, $params)) {
+        if (is_callable($this->options['callback'])) {
+            $params = ['decoded' => $decoded];
+            if (false === $this->options['callback']($request, $response, $params)) {
                 return $this->error($request, $response, [
-                    "message" => $this->message ? $this->message : "Callback returned false"
+                    'message' => $this->message ? $this->message : 'Callback returned false'
                 ])->withStatus(401);
             }
         }
 
         /* Add decoded token to request as attribute when requested. */
-        if ($this->options["attribute"]) {
-            $request = $request->withAttribute($this->options["attribute"], $decoded);
+        if ($this->options['attribute']) {
+            $request = $request->withAttribute($this->options['attribute'], $decoded);
         }
 
         /* Everything ok, call next middleware and return. */
@@ -173,9 +174,9 @@ class JwtAuthentication
      */
     public function error(RequestInterface $request, ResponseInterface $response, $arguments)
     {
-        if (is_callable($this->options["error"])) {
-            $handler_response = $this->options["error"]($request, $response, $arguments);
-            if (is_a($handler_response, "\Psr\Http\Message\ResponseInterface")) {
+        if (is_callable($this->options['error'])) {
+            $handler_response = $this->options['error']($request, $response, $arguments);
+            if (is_a($handler_response, '\Psr\Http\Message\ResponseInterface')) {
                 return $handler_response;
             }
         }
@@ -192,32 +193,32 @@ class JwtAuthentication
     {
         /* If using PHP in CGI mode and non standard environment */
         $server_params = $request->getServerParams();
-        $header = "";
-        $message = "";
+        $header = '';
+        $message = '';
 
         /* Check for each given environment */
-        foreach ((array) $this->options["environment"] as $environment) {
+        foreach ((array) $this->options['environment'] as $environment) {
             if (isset($server_params[$environment])) {
-                $message = "Using token from environment";
+                $message = 'Using token from environment';
                 $header = $server_params[$environment];
             }
         }
 
         /* Nothing in environment, try header instead */
         if (empty($header)) {
-            $message = "Using token from request header";
-            $headers = $request->getHeader($this->options["header"]);
-            $header = isset($headers[0]) ? $headers[0] : "";
+            $message = 'Using token from request header';
+            $headers = $request->getHeader($this->options['header']);
+            $header = isset($headers[0]) ? $headers[0] : '';
         }
 
         /* Try apache_request_headers() as last resort */
-        if (empty($header) && function_exists("apache_request_headers")) {
-            $message = "Using token from apache_request_headers()";
+        if (empty($header) && function_exists('apache_request_headers')) {
+            $message = 'Using token from apache_request_headers()';
             $headers = apache_request_headers();
-            $header = isset($headers[$this->options["header"]]) ? $headers[$this->options["header"]] : "";
+            $header = isset($headers[$this->options['header']]) ? $headers[$this->options['header']] : '';
         }
 
-        if (preg_match($this->options["regexp"], $header, $matches)) {
+        if (preg_match($this->options['regexp'], $header, $matches)) {
             $this->log(LogLevel::DEBUG, $message);
             return $matches[1];
         }
@@ -225,14 +226,14 @@ class JwtAuthentication
         /* Bearer not found, try a cookie. */
         $cookie_params = $request->getCookieParams();
 
-        if (isset($cookie_params[$this->options["cookie"]])) {
-            $this->log(LogLevel::DEBUG, "Using token from cookie");
-            $this->log(LogLevel::DEBUG, $cookie_params[$this->options["cookie"]]);
-            return $cookie_params[$this->options["cookie"]];
+        if (isset($cookie_params[$this->options['cookie']])) {
+            $this->log(LogLevel::DEBUG, 'Using token from cookie');
+            $this->log(LogLevel::DEBUG, $cookie_params[$this->options['cookie']]);
+            return $cookie_params[$this->options['cookie']];
         };
 
         /* If everything fails log and return false. */
-        $this->message = "Token not found";
+        $this->message = 'Token not found';
         $this->log(LogLevel::WARNING, $this->message);
         return false;
     }
@@ -246,11 +247,13 @@ class JwtAuthentication
     public function decodeToken($token)
     {
         try {
-            return JWT::decode(
-                $token,
-                $this->options["secret"],
-                (array) $this->options["algorithm"]
-            );
+            $signer = new Sha256();
+            $token = (new Parser())->parse((string) $token);
+            $isValidAlg = in_array($token->getHeader('alg'), $this->options['algorithm']);
+            if ($isValidAlg && $token->verify($signer, $this->options['secret'])) {
+                return $token;
+            }
+            return false;
         } catch (\Exception $exception) {
             $this->message = $exception->getMessage();
             $this->log(LogLevel::WARNING, $exception->getMessage(), [$token]);
@@ -267,7 +270,7 @@ class JwtAuthentication
     private function hydrate(array $data = [])
     {
         foreach ($data as $key => $value) {
-            $method = "set" . ucfirst($key);
+            $method = 'set' . ucfirst($key);
             if (method_exists($this, $method)) {
                 call_user_func(array($this, $method), $value);
             }
@@ -283,7 +286,7 @@ class JwtAuthentication
      */
     public function getPath()
     {
-        return $this->options["path"];
+        return $this->options['path'];
     }
 
     /**
@@ -294,7 +297,7 @@ class JwtAuthentication
      */
     public function setPath($path)
     {
-        $this->options["path"] = $path;
+        $this->options['path'] = $path;
         return $this;
     }
 
@@ -305,7 +308,7 @@ class JwtAuthentication
      */
     public function getPassthrough()
     {
-        return $this->options["passthrough"];
+        return $this->options['passthrough'];
     }
 
     /**
@@ -316,7 +319,7 @@ class JwtAuthentication
      */
     public function setPassthrough($passthrough)
     {
-        $this->options["passthrough"] = $passthrough;
+        $this->options['passthrough'] = $passthrough;
         return $this;
     }
 
@@ -327,7 +330,7 @@ class JwtAuthentication
      */
     public function getEnvironment()
     {
-        return $this->options["environment"];
+        return $this->options['environment'];
     }
 
     /**
@@ -338,7 +341,7 @@ class JwtAuthentication
      */
     public function setEnvironment($environment)
     {
-        $this->options["environment"] = $environment;
+        $this->options['environment'] = $environment;
         return $this;
     }
 
@@ -349,7 +352,7 @@ class JwtAuthentication
      */
     public function getCookie()
     {
-        return $this->options["cookie"];
+        return $this->options['cookie'];
     }
 
     /**
@@ -360,7 +363,7 @@ class JwtAuthentication
      */
     public function setCookie($cookie)
     {
-        $this->options["cookie"] = $cookie;
+        $this->options['cookie'] = $cookie;
         return $this;
     }
 
@@ -371,7 +374,7 @@ class JwtAuthentication
      */
     public function getSecure()
     {
-        return $this->options["secure"];
+        return $this->options['secure'];
     }
 
     /**
@@ -382,7 +385,7 @@ class JwtAuthentication
      */
     public function setSecure($secure)
     {
-        $this->options["secure"] = !!$secure;
+        $this->options['secure'] = !!$secure;
         return $this;
     }
 
@@ -394,7 +397,7 @@ class JwtAuthentication
      */
     public function getRelaxed()
     {
-        return $this->options["relaxed"];
+        return $this->options['relaxed'];
     }
 
     /**
@@ -405,7 +408,7 @@ class JwtAuthentication
      */
     public function setRelaxed(array $relaxed)
     {
-        $this->options["relaxed"] = $relaxed;
+        $this->options['relaxed'] = $relaxed;
         return $this;
     }
 
@@ -416,7 +419,7 @@ class JwtAuthentication
      */
     public function getSecret()
     {
-        return $this->options["secret"];
+        return $this->options['secret'];
     }
 
     /**
@@ -427,7 +430,7 @@ class JwtAuthentication
      */
     public function setSecret($secret)
     {
-        $this->options["secret"] = $secret;
+        $this->options['secret'] = $secret;
         return $this;
     }
 
@@ -438,7 +441,7 @@ class JwtAuthentication
      */
     public function getCallback()
     {
-        return $this->options["callback"];
+        return $this->options['callback'];
     }
 
     /**
@@ -449,7 +452,7 @@ class JwtAuthentication
      */
     public function setCallback($callback)
     {
-        $this->options["callback"] = $callback->bindTo($this);
+        $this->options['callback'] = $callback->bindTo($this);
         return $this;
     }
 
@@ -460,7 +463,7 @@ class JwtAuthentication
      */
     public function getError()
     {
-        return $this->options["error"];
+        return $this->options['error'];
     }
 
     /**
@@ -471,7 +474,7 @@ class JwtAuthentication
      */
     public function setError($error)
     {
-        $this->options["error"] = $error;
+        $this->options['error'] = $error;
         return $this;
     }
 
@@ -584,7 +587,7 @@ class JwtAuthentication
      */
     public function getAttribute()
     {
-        return $this->options["attribute"];
+        return $this->options['attribute'];
     }
 
     /**
@@ -595,7 +598,7 @@ class JwtAuthentication
      */
     public function setAttribute($attribute)
     {
-        $this->options["attribute"] = $attribute;
+        $this->options['attribute'] = $attribute;
         return $this;
     }
 
@@ -606,7 +609,7 @@ class JwtAuthentication
      */
     public function getHeader()
     {
-        return $this->options["header"];
+        return $this->options['header'];
     }
 
     /**
@@ -617,7 +620,7 @@ class JwtAuthentication
      */
     public function setHeader($header)
     {
-        $this->options["header"] = $header;
+        $this->options['header'] = $header;
         return $this;
     }
 
@@ -628,7 +631,7 @@ class JwtAuthentication
      */
     public function getRegexp()
     {
-        return $this->options["regexp"];
+        return $this->options['regexp'];
     }
 
     /**
@@ -639,7 +642,7 @@ class JwtAuthentication
      */
     public function setRegexp($regexp)
     {
-        $this->options["regexp"] = $regexp;
+        $this->options['regexp'] = $regexp;
         return $this;
     }
 
@@ -650,7 +653,7 @@ class JwtAuthentication
      */
     public function getAlgorithm()
     {
-        return $this->options["algorithm"];
+        return $this->options['algorithm'];
     }
 
     /**
@@ -661,7 +664,7 @@ class JwtAuthentication
      */
     public function setAlgorithm($algorithm)
     {
-        $this->options["algorithm"] = $algorithm;
+        $this->options['algorithm'] = $algorithm;
         return $this;
     }
 }
