@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit colors="true" convertNoticesToExceptions="true" convertWarningsToExceptions="true" stopOnError="false" stopOnFailure="false" stopOnIncomplete="false" stopOnSkipped="false" bootstrap="tests/bootstrap.php">
+<phpunit
+  colors="auto"
+  convertNoticesToExceptions="true"
+  convertWarningsToExceptions="true"
+  stopOnError="false"
+  stopOnFailure="false"
+  stopOnIncomplete="false"
+  stopOnSkipped="false"
+  bootstrap="tests/bootstrap.php"
+  verbose="true">
     <testsuites>
         <testsuite name="all">
             <directory suffix="Test.php">tests/</directory>
@@ -10,5 +19,17 @@
             <directory suffix=".php">vendor/</directory>
             <directory suffix=".php">tests/</directory>
         </blacklist>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">src</directory>
+        </whitelist>
     </filter>
+    <logging>
+          <log charset="UTF-8" highLowerBound="70" highlight="false" lowUpperBound="35" target="tests/report/report" type="coverage-html" />
+          <log target="tests/report/clover.xml" type="coverage-clover" />
+          <log target="tests/report/coverage.cov" type="coverage-php" />
+          <log target="tests/report/coverage.txt" type="coverage-text" />
+          <log target="tests/report/logfile.xml" type="junit" logIncompleteSkipped="false" />
+          <log target="tests/report/testdox.html" type="testdox-html" />
+          <log target="tests/report/testdox.txt" type="testdox-text" />
+      </logging>
 </phpunit>

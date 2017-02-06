@@ -22,7 +22,8 @@ use Psr\Log\LogLevel;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Lcobucci\JWT\Parser;
-use Lcobucci\JWT\Signer\Hmac\Sha256;
+use Lcobucci\JWT\Signer\Rsa;
+use Lcobucci\JWT\Signer\Hmac;
 
 class JwtAuthentication
 {
@@ -247,12 +248,26 @@ class JwtAuthentication
     public function decodeToken($token)
     {
         try {
-            $signer = new Sha256();
             $token = (new Parser())->parse((string) $token);
+
+            switch ($token->getHeader('alg')) {
+                case 'HS256':
+                    $signer = new Hmac\Sha256();
+                    break;
+                case 'RS256':
+                default:
+                    $signer = new Rsa\Sha256();
+                    break;
+            }
+
             $isValidAlg = in_array($token->getHeader('alg'), $this->options['algorithm']);
+
             if ($isValidAlg && $token->verify($signer, $this->options['secret'])) {
                 return $token;
             }
+
+            $this->message = 'Your JWT was unable to be verified';
+
             return false;
         } catch (\Exception $exception) {
             $this->message = $exception->getMessage();

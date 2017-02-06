@@ -1,5 +1,4 @@
-/node_modules/
-/vendor/
-/report/
-composer.lock
 .DS_Store
+vendor/
+report/
+composer.lock
